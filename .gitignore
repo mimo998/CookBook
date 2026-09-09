@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+cookbook.db
+/database/__pycache__/
+/models/__pycache__/
+/ui/__pycache__/

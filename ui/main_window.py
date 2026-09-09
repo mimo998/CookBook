@@ -1,20 +1,19 @@
 import tkinter as tk
-from models.ranking_list import Ranking_List
-from models.restaurants_list import Restaurants_List
-from models.recipe_list import Recipe_List
 from ui.ranking_window import RankingWindow
 from ui.restaurants_window import RestaurantsWindow
 from ui.recipes_window import RecipesWindow
+from ui.try_later_window import TryLaterWindow
 
 
 class MainWindow:
-    def __init__(self, root):
+    def __init__(self, root, ranking_list, restaurants_list, recipe_list, try_later_list):
         self.root = root
         self.root.title("CookBook")
 
-        self.ranking_list = Ranking_List()
-        self.restaurants_list = Restaurants_List()
-        self.recipe_list = Recipe_List()
+        self.ranking_list = ranking_list
+        self.restaurants_list = restaurants_list
+        self.recipe_list = recipe_list
+        self.try_later_list = try_later_list
 
         self.food_ranking_button = tk.Button(
             root, text="Food Ranking", command=self.open_ranking_window
@@ -31,6 +30,11 @@ class MainWindow:
         )
         self.recipes_button.pack(side="left")
 
+        self.try_later_button = tk.Button(
+            root, text="Try Later", command=self.open_try_later_window
+        )
+        self.try_later_button.pack(side="left")
+
     def open_ranking_window(self):
         RankingWindow(self.root, self.ranking_list)
 
@@ -39,3 +43,6 @@ class MainWindow:
 
     def open_recipes_window(self):
         RecipesWindow(self.root, self.recipe_list)
+
+    def open_try_later_window(self):
+        TryLaterWindow(self.root, self.try_later_list, self.ranking_list)
