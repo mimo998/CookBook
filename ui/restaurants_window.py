@@ -1,0 +1,97 @@
+import tkinter as tk
+
+
+class RestaurantsWindow:
+    def __init__(self, root, restaurants_list):
+        self.restaurants_list = restaurants_list
+
+        self.window = tk.Toplevel(root)
+        self.window.title("Restaurants")
+
+        button_frame = tk.Frame(self.window)
+        button_frame.pack(side="left", fill="y", padx=5, pady=5)
+
+        self.add_button = tk.Button(button_frame, text="Add", command=self.open_add_popup)
+        self.add_button.pack(fill="x")
+
+        self.delete_button = tk.Button(button_frame, text="Delete", command=self.delete_selected)
+        self.delete_button.pack(fill="x")
+
+        self.edit_button = tk.Button(button_frame, text="Edit", command=self.open_edit_popup)
+        self.edit_button.pack(fill="x")
+
+        self.listbox = tk.Listbox(self.window, width=40)
+        self.listbox.pack(side="left", fill="both", expand=True, padx=5, pady=5)
+
+        self.refresh_list()
+
+    def refresh_list(self):
+        self.listbox.delete(0, tk.END)
+        for name, rank in self.restaurants_list.ranking_sort().items():
+            self.listbox.insert(tk.END, f"{rank:>4.1f}  {name}")
+
+    def delete_selected(self):
+        selection = self.listbox.curselection()
+        if not selection:
+            return
+        selected_text = self.listbox.get(selection[0])
+        name = selected_text.split(maxsplit=1)[1]
+        self.restaurants_list.remove_restaurant(name)
+        self.refresh_list()
+
+    def open_edit_popup(self):
+        selection = self.listbox.curselection()
+        if not selection:
+            return
+        selected_text = self.listbox.get(selection[0])
+        name = selected_text.split(maxsplit=1)[1]
+
+        popup = tk.Toplevel(self.window)
+        popup.title("Edit Restaurant Rank")
+
+        tk.Label(popup, text="New Rank (0-5):").grid(row=0, column=0, sticky="e")
+        rank_entry = tk.Entry(popup)
+        rank_entry.grid(row=0, column=1)
+
+        error_label = tk.Label(popup, text="", fg="red")
+        error_label.grid(row=1, column=0, columnspan=2)
+
+        def submit():
+            try:
+                rank = float(rank_entry.get())
+                self.restaurants_list.change_restaurant_rank(name, rank)
+                self.refresh_list()
+                popup.destroy()
+            except ValueError as e:
+                error_label.config(text=str(e))
+
+        submit_button = tk.Button(popup, text="Submit", command=submit)
+        submit_button.grid(row=2, column=0, columnspan=2)
+
+    def open_add_popup(self):
+        popup = tk.Toplevel(self.window)
+        popup.title("Add Restaurant")
+
+        tk.Label(popup, text="Name:").grid(row=0, column=0, sticky="e")
+        name_entry = tk.Entry(popup)
+        name_entry.grid(row=0, column=1)
+
+        tk.Label(popup, text="Rank (0-5):").grid(row=1, column=0, sticky="e")
+        rank_entry = tk.Entry(popup)
+        rank_entry.grid(row=1, column=1)
+
+        error_label = tk.Label(popup, text="", fg="red")
+        error_label.grid(row=2, column=0, columnspan=2)
+
+        def submit():
+            try:
+                name = name_entry.get()
+                rank = float(rank_entry.get())
+                self.restaurants_list.add_restaurant(name, rank)
+                self.refresh_list()
+                popup.destroy()
+            except ValueError as e:
+                error_label.config(text=str(e))
+
+        submit_button = tk.Button(popup, text="Submit", command=submit)
+        submit_button.grid(row=3, column=0, columnspan=2)
