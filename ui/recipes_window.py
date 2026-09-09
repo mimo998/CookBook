@@ -1,6 +1,7 @@
 import tkinter as tk
 from models.recipe import Recipe
 from models.ingredient import Ingredient
+from services.recipe_importer import import_recipe_from_url
 
 
 class RecipesWindow:
@@ -22,6 +23,9 @@ class RecipesWindow:
         self.edit_button = tk.Button(button_frame, text="Edit", command=self.open_edit_popup)
         self.edit_button.pack(fill="x")
 
+        self.import_button = tk.Button(button_frame, text="Import from URL", command=self.open_import_popup)
+        self.import_button.pack(fill="x")
+
         self.listbox = tk.Listbox(self.window, width=40)
         self.listbox.pack(side="left", fill="both", expand=True, padx=5, pady=5)
 
@@ -29,7 +33,7 @@ class RecipesWindow:
 
     def refresh_list(self):
         self.listbox.delete(0, tk.END)
-        for name in sorted(self.recipe_list.recipes.keys()):
+        for name in sorted(self.recipe_list.get_all_recipes().keys()):
             self.listbox.insert(tk.END, name)
 
     def delete_selected(self):
@@ -182,6 +186,34 @@ class RecipesWindow:
             popup.destroy()
         except ValueError as e:
             self.error_label.config(text=str(e))
+
+    # ---- Import Recipe from URL ----
+
+    def open_import_popup(self):
+        popup = tk.Toplevel(self.window)
+        popup.title("Import Recipe from URL")
+
+        tk.Label(popup, text="Recipe URL:").grid(row=0, column=0, sticky="e")
+        url_entry = tk.Entry(popup, width=40)
+        url_entry.grid(row=0, column=1)
+
+        error_label = tk.Label(popup, text="", fg="red")
+        error_label.grid(row=1, column=0, columnspan=2)
+
+        def submit():
+            try:
+                url = url_entry.get()
+                if not url:
+                    raise ValueError("Enter a URL.")
+                recipe = import_recipe_from_url(url)
+                self.recipe_list.add_recipe(recipe)
+                self.refresh_list()
+                popup.destroy()
+            except ValueError as e:
+                error_label.config(text=str(e))
+
+        submit_button = tk.Button(popup, text="Import", command=submit)
+        submit_button.grid(row=2, column=0, columnspan=2)
 
     # ---- Add Recipe ----
 

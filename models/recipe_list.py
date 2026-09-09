@@ -9,6 +9,9 @@ class Recipe_List:
         if recipe is None:
             raise ValueError(f"{name} does not exist in the list.")
         return recipe
+
+    def get_all_recipes(self):
+        return self.storage.get_all()
     
     def add_recipe(self, recipe):
         if not isinstance(recipe, Recipe):

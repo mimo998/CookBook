@@ -1,4 +1,5 @@
 from models.ingredient import Ingredient
+from models.recipe import Recipe
 
 
 class RecipeStorage:
@@ -31,7 +32,7 @@ class RecipeStorage:
         if row is None:
             return None
         name, time, instructions = row
-        return (self._get_ingredients(cursor, name), time, instructions)
+        return Recipe(name, self._get_ingredients(cursor, name), time, instructions)
 
     def get_all(self):
         cursor = self.connection.cursor()
@@ -40,7 +41,7 @@ class RecipeStorage:
 
         result = {}
         for name, time, instructions in recipes:
-            result[name] = (self._get_ingredients(cursor, name), time, instructions)
+            result[name] = Recipe(name, self._get_ingredients(cursor, name), time, instructions)
         return result
 
     def _get_ingredients(self, cursor, recipe_name):
