@@ -4,7 +4,6 @@ class Ranking_List:
 
     def __init__(self, storage):
         self.storage = storage
-        self.tiers = {}
 
     def ranking_sort(self):
         print("---Food Ranking---\n")
@@ -36,9 +35,10 @@ class Ranking_List:
         self.storage.delete(name)
 
     def tier_list(self):
-        self.tiers = {tier: [] for _, tier in TIERS}
+        tiers = {tier: [] for _, tier in TIERS}
         for name, rank in self.storage.get_all().items():
             for threshold, tier in TIERS:
                 if rank >= threshold:
-                    self.tiers[tier].append(name)
+                    tiers[tier].append(name)
                     break
+        return tiers

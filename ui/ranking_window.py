@@ -21,6 +21,9 @@ class RankingWindow:
         self.edit_button = tk.Button(button_frame, text="Edit", command=self.open_edit_popup)
         self.edit_button.pack(fill="x")
 
+        self.tier_list = tk.Button(button_frame, text="Tier List", command=self.open_tier_list)
+        self.tier_list.pack(fill="x")
+
         # Right side: the list itself
         self.listbox = tk.Listbox(self.window, width=40)
         self.listbox.pack(side="left", fill="both", expand=True, padx=5, pady=5)
@@ -97,3 +100,13 @@ class RankingWindow:
 
         submit_button = tk.Button(popup, text="Submit", command=submit)
         submit_button.grid(row=3, column=0, columnspan=2)
+
+    def open_tier_list(self):
+        popup = tk.Toplevel(self.window)
+        popup.title("Tier List")
+
+        tier_list = self.ranking_list.tier_list()
+        for tier, items in tier_list.items():
+            tk.Label(popup, text=f"{tier}:").pack(anchor="w")
+            for item in items:
+                tk.Label(popup, text=f"  - {item}").pack(anchor="w")
