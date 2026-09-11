@@ -4,45 +4,74 @@ from models.ingredient import Ingredient
 from services.recipe_importer import import_recipe_from_url
 
 
-class RecipesWindow:
-    def __init__(self, root, recipe_list):
+class RecipesFrame(tk.Frame):
+    def __init__(self, parent, recipe_list, show_home, mainwindow):
+        super().__init__(parent)
         self.recipe_list = recipe_list
+        self.mainwindow = mainwindow
 
-        self.window = tk.Toplevel(root)
-        self.window.title("Recipes")
+        header = tk.Frame(self)
+        header.pack(fill="x", padx=10, pady=(10, 4))
+        tk.Button(header, text="\u2190 Back", command=show_home).pack(side="left")
+        tk.Label(header, text="Recipes", font=("Segoe UI", 14, "bold")).pack(side="left", padx=12)
 
-        button_frame = tk.Frame(self.window)
-        button_frame.pack(side="left", fill="y", padx=5, pady=5)
+        body = tk.Frame(self)
+        body.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
-        self.add_button = tk.Button(button_frame, text="Add", command=self.open_add_popup)
-        self.add_button.pack(fill="x")
+        button_frame = tk.Frame(body)
+        button_frame.pack(side="left", fill="y", padx=(0, 8))
 
-        self.delete_button = tk.Button(button_frame, text="Delete", command=self.delete_selected)
-        self.delete_button.pack(fill="x")
+        for text, command in [
+            ("Add", self.open_add_popup),
+            ("Edit", self.open_edit_popup),
+            ("Delete", self.delete_selected),
+            ("Import from URL", self.open_import_popup),
+        ]:
+            tk.Button(button_frame, text=text, width=14, command=command).pack(fill="x", pady=2)
 
-        self.edit_button = tk.Button(button_frame, text="Edit", command=self.open_edit_popup)
-        self.edit_button.pack(fill="x")
+        self.listbox = tk.Listbox(body, font=("Consolas", 11))
+        self.listbox.pack(side="left", fill="both", expand=True)
 
-        self.import_button = tk.Button(button_frame, text="Import from URL", command=self.open_import_popup)
-        self.import_button.pack(fill="x")
-
-        self.listbox = tk.Listbox(self.window, width=40)
-        self.listbox.pack(side="left", fill="both", expand=True, padx=5, pady=5)
+        scrollbar = tk.Scrollbar(body, command=self.listbox.yview)
+        scrollbar.pack(side="left", fill="y")
+        self.listbox.config(yscrollcommand=scrollbar.set)
+        self.listbox.bind("<Double-Button-1>", self.open_recipe_view)
 
         self.refresh_list()
+
+    def open_recipe_view(self, event):
+        name = self._selected_name()
+        if name is None:
+            return
+        recipe = self.recipe_list.get_recipe(name)
+        if recipe is None:
+            return
+        self.mainwindow.show_recipe_detail(recipe)
 
     def refresh_list(self):
         self.listbox.delete(0, tk.END)
         for name in sorted(self.recipe_list.get_all_recipes().keys()):
             self.listbox.insert(tk.END, name)
 
-    def delete_selected(self):
+    def _selected_name(self):
         selection = self.listbox.curselection()
         if not selection:
+            return None
+        return self.listbox.get(selection[0])
+
+    def delete_selected(self):
+        name = self._selected_name()
+        if name is None:
             return
-        name = self.listbox.get(selection[0])
         self.recipe_list.remove_recipe(name)
         self.refresh_list()
+
+    def _new_popup(self, title):
+        popup = tk.Toplevel(self)
+        popup.title(title)
+        popup.transient(self.winfo_toplevel())
+        popup.grab_set()
+        return popup
 
     # ---- shared ingredients sub-editor, used by both Add and Edit popups ----
 
@@ -51,10 +80,10 @@ class RecipesWindow:
         Returns the live list of Ingredient objects being built up."""
         ingredients = list(initial_ingredients) if initial_ingredients else []
 
-        tk.Label(popup, text="Ingredients:").grid(row=row, column=0, sticky="ne")
+        tk.Label(popup, text="Ingredients:").grid(row=row, column=0, sticky="ne", padx=6, pady=6)
 
-        ingredients_listbox = tk.Listbox(popup, width=32, height=5)
-        ingredients_listbox.grid(row=row, column=1, sticky="w")
+        ingredients_listbox = tk.Listbox(popup, width=34, height=6)
+        ingredients_listbox.grid(row=row, column=1, sticky="w", padx=6, pady=6)
 
         def refresh_ingredients_listbox():
             ingredients_listbox.delete(0, tk.END)
@@ -76,36 +105,31 @@ class RecipesWindow:
         def open_add_ingredient_popup():
             ingredient_popup = tk.Toplevel(popup)
             ingredient_popup.title("Add Ingredient")
+            ingredient_popup.transient(popup)
+            ingredient_popup.grab_set()
 
-            tk.Label(ingredient_popup, text="Name:").grid(row=0, column=0, sticky="e")
-            name_entry = tk.Entry(ingredient_popup)
-            name_entry.grid(row=0, column=1)
-
-            tk.Label(ingredient_popup, text="Amount:").grid(row=1, column=0, sticky="e")
-            amount_entry = tk.Entry(ingredient_popup)
-            amount_entry.grid(row=1, column=1)
-
-            tk.Label(ingredient_popup, text="Unit:").grid(row=2, column=0, sticky="e")
-            unit_entry = tk.Entry(ingredient_popup)
-            unit_entry.grid(row=2, column=1)
-
-            tk.Label(ingredient_popup, text="Calories (optional):").grid(row=3, column=0, sticky="e")
-            calories_entry = tk.Entry(ingredient_popup)
-            calories_entry.grid(row=3, column=1)
-
-            tk.Label(ingredient_popup, text="Description (optional):").grid(row=4, column=0, sticky="e")
-            description_entry = tk.Entry(ingredient_popup)
-            description_entry.grid(row=4, column=1)
+            fields = {}
+            for i, (label, key) in enumerate([
+                ("Name:", "name"),
+                ("Amount:", "amount"),
+                ("Unit:", "unit"),
+                ("Calories (optional):", "calories"),
+                ("Description (optional):", "description"),
+            ]):
+                tk.Label(ingredient_popup, text=label).grid(row=i, column=0, sticky="e", padx=6, pady=4)
+                entry = tk.Entry(ingredient_popup)
+                entry.grid(row=i, column=1, padx=6, pady=4)
+                fields[key] = entry
 
             ingredient_error_label = tk.Label(ingredient_popup, text="", fg="red")
             ingredient_error_label.grid(row=5, column=0, columnspan=2)
 
             def submit_ingredient():
-                name = name_entry.get()
-                amount = amount_entry.get()
-                unit = unit_entry.get()
-                calories_text = calories_entry.get()
-                description = description_entry.get()
+                name = fields["name"].get()
+                amount = fields["amount"].get()
+                unit = fields["unit"].get()
+                calories_text = fields["calories"].get()
+                description = fields["description"].get()
 
                 if not name or not amount:
                     ingredient_error_label.config(text="Name and amount are required.")
@@ -121,13 +145,15 @@ class RecipesWindow:
                 refresh_ingredients_listbox()
                 ingredient_popup.destroy()
 
-            submit_button = tk.Button(ingredient_popup, text="Add", command=submit_ingredient)
-            submit_button.grid(row=6, column=0, columnspan=2)
+            tk.Button(ingredient_popup, text="Add", command=submit_ingredient).grid(
+                row=6, column=0, columnspan=2, pady=(0, 8))
 
         controls_frame = tk.Frame(popup)
-        controls_frame.grid(row=row, column=2, sticky="n")
-        tk.Button(controls_frame, text="Add Ingredient", command=open_add_ingredient_popup).pack(fill="x")
-        tk.Button(controls_frame, text="Remove Selected", command=remove_selected_ingredient).pack(fill="x")
+        controls_frame.grid(row=row, column=2, sticky="n", pady=6)
+        tk.Button(controls_frame, text="Add Ingredient", width=14,
+                  command=open_add_ingredient_popup).pack(fill="x", pady=2)
+        tk.Button(controls_frame, text="Remove Selected", width=14,
+                  command=remove_selected_ingredient).pack(fill="x", pady=2)
 
         refresh_ingredients_listbox()
         return ingredients
@@ -135,42 +161,39 @@ class RecipesWindow:
     # ---- Edit Recipe ----
 
     def open_edit_popup(self):
-        selection = self.listbox.curselection()
-        if not selection:
+        name = self._selected_name()
+        if name is None:
             return
-        name = self.listbox.get(selection[0])
         recipe = self.recipe_list.get_recipe(name)
 
-        popup = tk.Toplevel(self.window)
-        popup.title("Edit Recipe")
+        popup = self._new_popup("Edit Recipe")
 
-        tk.Label(popup, text="Name:").grid(row=0, column=0, sticky="e")
-        name_entry = tk.Entry(popup)
+        tk.Label(popup, text="Name:").grid(row=0, column=0, sticky="e", padx=6, pady=6)
+        name_entry = tk.Entry(popup, width=34)
         name_entry.insert(0, recipe.name)
-        name_entry.grid(row=0, column=1)
+        name_entry.grid(row=0, column=1, padx=6, pady=6)
 
-        tk.Label(popup, text="Time:").grid(row=1, column=0, sticky="e")
-        time_entry = tk.Entry(popup)
+        tk.Label(popup, text="Time:").grid(row=1, column=0, sticky="e", padx=6, pady=6)
+        time_entry = tk.Entry(popup, width=34)
         time_entry.insert(0, recipe.time)
-        time_entry.grid(row=1, column=1)
+        time_entry.grid(row=1, column=1, padx=6, pady=6)
 
-        tk.Label(popup, text="Instructions:").grid(row=2, column=0, sticky="e")
-        instructions_entry = tk.Entry(popup)
+        tk.Label(popup, text="Instructions:").grid(row=2, column=0, sticky="e", padx=6, pady=6)
+        instructions_entry = tk.Entry(popup, width=34)
         instructions_entry.insert(0, recipe.instructions)
-        instructions_entry.grid(row=2, column=1)
+        instructions_entry.grid(row=2, column=1, padx=6, pady=6)
 
         ingredients = self._build_ingredients_section(popup, row=3, initial_ingredients=recipe.ingredients)
 
         self.error_label = tk.Label(popup, text="", fg="red")
-        self.error_label.grid(row=4, column=0, columnspan=2)
+        self.error_label.grid(row=4, column=0, columnspan=3)
 
-        submit_button = tk.Button(
+        tk.Button(
             popup, text="Submit",
             command=lambda: self.submit_edit(
                 recipe, name_entry.get(), ingredients, time_entry.get(), instructions_entry.get(), popup
             )
-        )
-        submit_button.grid(row=5, column=0, columnspan=2)
+        ).grid(row=5, column=0, columnspan=3, pady=(0, 8))
 
     def submit_edit(self, recipe, new_name, new_ingredients, new_time, new_instructions, popup):
         try:
@@ -190,14 +213,13 @@ class RecipesWindow:
     # ---- Import Recipe from URL ----
 
     def open_import_popup(self):
-        popup = tk.Toplevel(self.window)
-        popup.title("Import Recipe from URL")
+        popup = self._new_popup("Import Recipe from URL")
 
-        tk.Label(popup, text="Recipe URL:").grid(row=0, column=0, sticky="e")
-        url_entry = tk.Entry(popup, width=40)
-        url_entry.grid(row=0, column=1)
+        tk.Label(popup, text="Recipe URL:").grid(row=0, column=0, sticky="e", padx=6, pady=6)
+        url_entry = tk.Entry(popup, width=46)
+        url_entry.grid(row=0, column=1, padx=6, pady=6)
 
-        error_label = tk.Label(popup, text="", fg="red")
+        error_label = tk.Label(popup, text="", fg="red", wraplength=380, justify="left")
         error_label.grid(row=1, column=0, columnspan=2)
 
         def submit():
@@ -212,31 +234,29 @@ class RecipesWindow:
             except ValueError as e:
                 error_label.config(text=str(e))
 
-        submit_button = tk.Button(popup, text="Import", command=submit)
-        submit_button.grid(row=2, column=0, columnspan=2)
+        tk.Button(popup, text="Import", command=submit).grid(row=2, column=0, columnspan=2, pady=(0, 8))
 
     # ---- Add Recipe ----
 
     def open_add_popup(self):
-        popup = tk.Toplevel(self.window)
-        popup.title("Add Recipe")
+        popup = self._new_popup("Add Recipe")
 
-        tk.Label(popup, text="Name:").grid(row=0, column=0, sticky="e")
-        name_entry = tk.Entry(popup)
-        name_entry.grid(row=0, column=1)
+        tk.Label(popup, text="Name:").grid(row=0, column=0, sticky="e", padx=6, pady=6)
+        name_entry = tk.Entry(popup, width=34)
+        name_entry.grid(row=0, column=1, padx=6, pady=6)
 
-        tk.Label(popup, text="Time:").grid(row=1, column=0, sticky="e")
-        time_entry = tk.Entry(popup)
-        time_entry.grid(row=1, column=1)
+        tk.Label(popup, text="Time:").grid(row=1, column=0, sticky="e", padx=6, pady=6)
+        time_entry = tk.Entry(popup, width=34)
+        time_entry.grid(row=1, column=1, padx=6, pady=6)
 
-        tk.Label(popup, text="Instructions:").grid(row=2, column=0, sticky="e")
-        instructions_entry = tk.Entry(popup)
-        instructions_entry.grid(row=2, column=1)
+        tk.Label(popup, text="Instructions:").grid(row=2, column=0, sticky="e", padx=6, pady=6)
+        instructions_entry = tk.Entry(popup, width=34)
+        instructions_entry.grid(row=2, column=1, padx=6, pady=6)
 
         ingredients = self._build_ingredients_section(popup, row=3)
 
         error_label = tk.Label(popup, text="", fg="red")
-        error_label.grid(row=4, column=0, columnspan=2)
+        error_label.grid(row=4, column=0, columnspan=3)
 
         def submit():
             try:
@@ -245,15 +265,11 @@ class RecipesWindow:
                     raise ValueError("Name is required.")
                 if not ingredients:
                     raise ValueError("Add at least one ingredient.")
-                time = time_entry.get()
-                instructions = instructions_entry.get()
-
-                recipe = Recipe(name, list(ingredients), time, instructions)
+                recipe = Recipe(name, list(ingredients), time_entry.get(), instructions_entry.get())
                 self.recipe_list.add_recipe(recipe)
                 self.refresh_list()
                 popup.destroy()
             except ValueError as e:
                 error_label.config(text=str(e))
 
-        submit_button = tk.Button(popup, text="Submit", command=submit)
-        submit_button.grid(row=5, column=0, columnspan=2)
+        tk.Button(popup, text="Submit", command=submit).grid(row=5, column=0, columnspan=3, pady=(0, 8))
